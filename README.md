@@ -1,5 +1,9 @@
 godi
 ===========
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/asaskevich/godi?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![GoDoc](https://godoc.org/github.com/asaskevich/godi?status.png)](https://godoc.org/github.com/asaskevich/godi)
+[![Build Status](https://travis-ci.org/asaskevich/godi.svg?branch=master)](https://travis-ci.org/asaskevich/godi)
+[![Coverage](https://codecov.io/gh/asaskevich/godi/branch/master/graph/badge.svg)](https://codecov.io/gh/asaskevich/godi) [![Go Report Card](https://goreportcard.com/badge/github.com/asaskevich/godi)](https://goreportcard.com/report/github.com/asaskevich/godi) 
+
 Dependency injection in Golang at runtime.
 
 #### Installation
