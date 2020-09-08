@@ -3,12 +3,16 @@ package godi
 import (
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 )
 
+// New creates new container used to store and organize services and factories
 func (c *Container) New() {
 	c.services = make([]serviceWrapper, 0)
 }
 
+// RegisterFactory performs inserting of the factory function into the container
 func (c *Container) RegisterFactory(service func() interface{}) {
 	serviceType := reflect.ValueOf(service).Type().Out(0).String()
 
@@ -19,6 +23,7 @@ func (c *Container) RegisterFactory(service func() interface{}) {
 	})
 }
 
+// RegisterFactory performs inserting of the service function into the container
 func (c *Container) RegisterService(item interface{}) {
 	componentType := reflect.TypeOf(item).String()
 
@@ -29,6 +34,7 @@ func (c *Container) RegisterService(item interface{}) {
 	})
 }
 
+// HasFactory checks whether factory for passed type has been registered
 func (c *Container) HasFactory(service interface{}) (res bool) {
 	res = false
 	t := reflect.ValueOf(service).Type().Out(0).String()
@@ -40,6 +46,7 @@ func (c *Container) HasFactory(service interface{}) (res bool) {
 	return
 }
 
+// HasService checks whether service has been registered
 func (c *Container) HasService(item interface{}) (res bool) {
 	res = false
 	t := reflect.TypeOf(item).String()
@@ -51,6 +58,7 @@ func (c *Container) HasService(item interface{}) (res bool) {
 	return
 }
 
+// GetFactory finds and returns factory function of passed type or error if there are no factories or more than one
 func (c *Container) GetFactory(factoryType string) (func() interface{}, error) {
 	res := func() interface{} {
 		return nil
@@ -72,6 +80,7 @@ func (c *Container) GetFactory(factoryType string) (func() interface{}, error) {
 	return res, nil
 }
 
+// GetService finds and returns service of passed type or error if there are no services or more than one
 func (c *Container) GetService(serviceType string) (interface{}, error) {
 	var res interface{}
 
@@ -87,6 +96,8 @@ func (c *Container) GetService(serviceType string) (interface{}, error) {
 	return res, nil
 }
 
+// ConstructService performs construct of the passed *created* struct.
+// It searches among the fields with tag `godi` and injects inner services if they are registered in containers before
 func (c *Container) ConstructService(item interface{}) (interface{}, error) {
 	if item == nil {
 		return nil, fmt.Errorf("unable to construct service from null")
@@ -113,6 +124,8 @@ func (c *Container) ConstructService(item interface{}) (interface{}, error) {
 
 		tag := typeField.Tag.Get(tagName)
 		if tag != "-" && tag != "" {
+			options := strings.Split(tag, ",")
+			sort.Strings(options)
 			lookup := typeField.Type.String()
 			service, err1 := c.GetService(lookup)
 			factory, err2 := c.GetFactory(lookup)
@@ -120,20 +133,28 @@ func (c *Container) ConstructService(item interface{}) (interface{}, error) {
 				return nil, fmt.Errorf("unable to find service of factory for type %v", lookup)
 			}
 			if service != nil {
-				value, err := c.ConstructService(service)
-				if err != nil {
-					return nil, fmt.Errorf("unable to construct inner service of type %v", lookup)
+				toSet := service
+				if sort.SearchStrings(options, tagAutowire) != len(options) {
+					value, err := c.ConstructService(toSet)
+					if err != nil {
+						return nil, fmt.Errorf("unable to construct inner service of type %v", lookup)
+					}
+					toSet = value
 				}
 				val := reflect.New(typeField.Type).Elem()
-				val.Set(reflect.ValueOf(value))
+				val.Set(reflect.ValueOf(toSet))
 				ret.Elem().FieldByName(typeField.Name).Set(val)
 			} else {
-				value, err := c.ConstructService(factory())
-				if err != nil {
-					return nil, fmt.Errorf("unable to construct inner service of type %v", lookup)
+				toSet := factory()
+				if sort.SearchStrings(options, tagAutowire) != len(options) {
+					value, err := c.ConstructService(toSet)
+					if err != nil {
+						return nil, fmt.Errorf("unable to construct inner service of type %v", lookup)
+					}
+					toSet = value
 				}
 				val := reflect.New(typeField.Type).Elem()
-				val.Set(reflect.ValueOf(value))
+				val.Set(reflect.ValueOf(toSet))
 				ret.Elem().FieldByName(typeField.Name).Set(val)
 			}
 		}
